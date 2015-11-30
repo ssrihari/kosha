@@ -24,14 +24,12 @@
   (str "http://www.karnatik.com/" relative-url))
 
 (defn all-kriti-urls []
+  (u/log :INFO :fetch-all-urls {})
   (let [url "http://www.karnatik.com/lyrics.shtml"
         doc (u/url->jsoup url)]
     (->> doc
          scrape-kriti-list
          (map build-kriti-url))))
-
-(comment
-  (def kriti-urls (doall (all-kriti-urls))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; scrape single kriti
@@ -44,27 +42,33 @@
        u/clean-str
        s/lower-case))
 
-(defn raga-name [^Elements elems]
-  (->> (.select elems "a")
-       (m/find-first #(re-find #"ragas" (.attr % "href")))
-       .text
-       u/clean-str
-       s/lower-case))
-
 (defn get-prop [^Elements elems prop-name]
-  (let [find-pat (re-pattern (str prop-name ": \\w+"))
+  (let [find-pat (re-pattern (str prop-name ": [\\w. ]+"))
         remove-pat (re-pattern (str prop-name ": "))]
-    (->> (.select elems "p")
-         (map #(.text %))
-         (m/find-first #(re-find find-pat %))
-         (re-seq find-pat)
-         first
-         (u/replace-str remove-pat "")
-         u/clean-str
-         s/lower-case)))
+    (some->> (.select elems "p")
+             (map #(.text %))
+             (m/find-first #(re-find find-pat %))
+             (re-seq find-pat)
+             first
+             (u/replace-str remove-pat "")
+             u/clean-str
+             s/lower-case)))
+
+(defn raga-name [^Elements elems]
+  (or
+   (some->> (.select elems "a")
+            (m/find-first #(re-find #"ragas" (.attr % "href")))
+            .text
+            u/clean-str
+            s/lower-case)
+   (get-prop elems "raagam")))
 
 (defn language [elems]
-  (get-prop elems "Language"))
+  (or
+   (some->> (.select elems "a")
+            (m/find-first #(re-find #"co\d\d\d\d.shtml" (.attr % "href")))
+            .text)
+   (get-prop elems "Language")))
 
 (defn taalam [elems]
   (get-prop elems "taaLam"))
@@ -72,31 +76,54 @@
 (defn composer [elems]
   (get-prop elems "Composer"))
 
-(defn lyrics [elems]
+(defn lyrics [elems kriti-url]
   (let [main-text (.select elems "font font > p")
         pallavi-index (u/find-first-match main-text "p" "pallavi")
+        language-index (when-let [li (u/find-first-match main-text "p" "language")] (inc li))
+        notation-index (u/find-first-match main-text "p" "notation:")
         meaning-index (u/find-first-match main-text "p" "meaning:")
-        until-index (if (= -1 meaning-index)
-                      (count main-text)
-                      meaning-index)]
-    (->> (.subList main-text pallavi-index until-index)
-         (map #(.html %))
-         (map u/clean-str)
-         (remove s/blank?))))
+        tamil-transliteration (u/find-first-match main-text "p" "transliteration:")
+        other-info-index (u/find-first-match main-text "p" "other information:")
+        start-index (->> [pallavi-index
+                          language-index]
+                         (remove nil?)
+                         (apply min))
+        until-index (->> [notation-index
+                          meaning-index
+                          other-info-index
+                          tamil-transliteration
+                          (count main-text)]
+                         (remove nil?)
+                         (apply min))
+        lyrics-plist (->> (.subList main-text start-index until-index)
+                          (map #(.html %))
+                          (map u/clean-str)
+                          (remove s/blank?))
+        has-named-stanzas? (even? (count lyrics-plist))]
+    (u/log :INFO :scrape {:has-named-stanzas has-named-stanzas? :kriti-url kriti-url})
+    (if has-named-stanzas?
+      {:has-named-stanzas true :content (apply sorted-map lyrics-plist)}
+      {:has-named-stanzas false :content lyrics-plist})))
 
 (defn meaning [elems]
   (let [meaning-index (u/find-first-match elems "p" "meaning:")
         other-info-index (u/find-first-match elems "p" "other information:")
         bottom-index (u/find-first-match elems "center" "first|previous|next")
-        until-index (if (= -1 other-info-index)
-                      bottom-index
-                      (dec other-info-index))]
-    (when-not (= -1 meaning-index)
+        until-index (if other-info-index
+                      (dec other-info-index)
+                      bottom-index)]
+    (when meaning-index
       (->> (.subList elems meaning-index until-index)
            (map #(.html %))
            (remove #{"Meaning:"})
            (map u/clean-str)
-           (remove s/blank?)))))
+           (remove s/blank?)
+           (s/join " ")))))
+
+(defn notation [elems]
+  (some->> (.select elems "p")
+           (m/find-first #(re-find #"(?i)notation:" (.text %)))
+           (.html)))
 
 (defn scrape-kriti-page [^Document doc url]
   (let [main-content (.select doc "*")]
@@ -105,23 +132,45 @@
      :composer (composer main-content)
      :language (language main-content)
      :taalam   (taalam main-content)
-     :lyrics   (lyrics main-content)
+     :lyrics   (try
+                 (lyrics main-content url)
+                 (catch clojure.lang.ArityException e
+                   (u/log :WARN :scrape {:kriti-url url :msg "Unable to get lyrics"})))
      :meaning  (meaning main-content)
+     :notation (notation main-content)
      :url      url}))
 
-(defn kriti-details [kriti-url]
+(defn get-kriti-details [kriti-url]
   (try
-    (prn "fetching " kriti-url)
-    (let [doc (u/url->jsoup kriti-url)]
+    (let [[exec-time doc] (u/with-time #(u/url->jsoup kriti-url))]
+      (u/log :INFO :fetch {:kriti-url kriti-url :exec-time exec-time})
       (scrape-kriti-page doc kriti-url))
     (catch Exception e
-      (prn "Caught exception when parsing " kriti-url))))
+      (def *ex e)
+      (.printStackTrace e)
+      (u/log :ERROR :fetch-and-scrape {:kriti-url kriti-url}))))
+
+(defn scrape-and-save-all-kritis []
+  (u/init-log!)
+  (let [filename "output/karnatik.edn"]
+    (u/log :INFO :save {:filename filename})
+    (spit filename "[")
+    (doall
+     (pmap (fn [kriti-url]
+             (let [[exec-time kriti-details] (u/with-time #(get-kriti-details kriti-url))
+                   pretty-kriti-details (-> kriti-details pp/pprint with-out-str)]
+               (do
+                 (spit filename pretty-kriti-details :append true)
+                 (u/log :INFO :ssave {:kriti-url kriti-url :total-exec-time exec-time}))))
+           (all-kriti-urls)))
+    (spit filename "]" :append true)
+    (u/log :INFO :done {})))
 
 (comment
   ;; TODO: convert these to tests
   ;; cases covered in lyrics and meaning
-  (kriti-details "http://www.karnatik.com/c1373.shtml") ;; p+a+c with meanings
-  (kriti-details "http://www.karnatik.com/c2254.shtml") ;; multiple charanams
-  (kriti-details "http://www.karnatik.com/c1726.shtml") ;; p+c multiple meaning paras
-  (kriti-details "http://www.karnatik.com/c1811.shtml") ;; no meaning
+  (get-kriti-details "http://www.karnatik.com/c1373.shtml") ;; p+a+c with meanings
+  (get-kriti-details "http://www.karnatik.com/c2254.shtml") ;; multiple charanams
+  (get-kriti-details "http://www.karnatik.com/c1726.shtml") ;; p+c multiple meaning paras
+  (get-kriti-details "http://www.karnatik.com/c1811.shtml") ;; no meaning
   )

@@ -1,0 +1,13 @@
+#!/bin/sh
+
+count_logs() {
+  grep "${1}" logs/scrapers.log | wc -l
+}
+
+echo total-count: $(count_logs ':ssave')
+echo scrap-count: $(count_logs ':scrape')
+echo error-count: $(count_logs 'ERROR')
+echo '\n'
+echo ':has-named-stanzas  true': $(count_logs ':has-named-stanzas true')
+echo ':has-named-stanzas false': $(count_logs ':has-named-stanzas false')
+echo 'WARN': $(count_logs 'WARN')
