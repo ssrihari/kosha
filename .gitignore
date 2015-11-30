@@ -7,6 +7,4 @@ pom.xml.asc
 *.class
 /.lein-*
 /.nrepl-port
-karnatik.edn*
-karnatik*.edn
 scrapers.log

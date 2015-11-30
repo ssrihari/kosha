@@ -31,6 +31,11 @@
       (s/replace #"\\r" "")
       (s/trim)))
 
+(defn nil-if-blank [input-str]
+  (if (s/blank? input-str)
+    nil
+    input-str))
+
 (defn replace-str
   "Version of string/replace where s is the last argument.
   Used when threading last."
