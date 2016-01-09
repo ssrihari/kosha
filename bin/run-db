@@ -1,0 +1,100 @@
+#!/bin/sh
+ROOT_DIR=$(cd "$(dirname $0)/.."; pwd)
+DB_DIR=${ROOT_DIR}/kosha-db
+CONN_OPTS="-h localhost -p 5432"
+DB_NAME=kosha
+PSQL_OPTS="${CONN_OPTS} -d ${DB_NAME}"
+
+dir_check() {
+    ls "${1}" > /dev/null 2>&1
+}
+
+
+db_start() {
+  ps ax | grep "postgres -D" | grep ${DB_DIR} > /dev/null 2>&1
+  if [ $? -eq 0 ]; then
+      echo "DB is running"
+  else
+      echo "DB is starting"
+      pg_ctl -D ${DB_DIR} -l logs/pg.log start
+  fi
+}
+
+db_install() {
+  if dir_check ${DB_DIR}; then
+    echo "DB exists"
+  else
+      echo "Creating DB"
+      initdb -D kosha-db
+  fi
+}
+
+run_psql () {
+    psql ${PSQL_OPTS} -c "${1}"
+}
+
+db_install
+db_start
+createdb ${CONN_OPTS} ${DB_NAME}
+echo createdb ${CONN_OPTS} ${DB_NAME}
+
+# create table
+#-----------------------
+run_psql "CREATE EXTENSION IF NOT EXISTS hstore;"
+
+run_psql "
+CREATE TABLE IF NOT EXISTS ragams (
+  id BIGSERIAL PRIMARY KEY,
+  mela_num BIGINT UNIQUE,
+  name VARCHAR(100),
+  arohanam VARCHAR(50),
+  avarohanam VARCHAR(50),
+  parent_mela_num BIGINT REFERENCES ragams(mela_num));
+"
+
+run_psql "
+CREATE TABLE IF NOT EXISTS karnatik_data (
+  id       BIGSERIAL PRIMARY KEY,
+  kriti    VARCHAR(100),
+  ragam    VARCHAR(50),
+  composer VARCHAR(50),
+  taalam   VARCHAR(30),
+  language VARCHAR(30),
+  lyrics   TEXT,
+  meaning  TEXT,
+  notation TEXT,
+  url      VARCHAR(100)
+)
+"
+
+# create table kritis (
+#   id bigserial primary key,
+#   name varchar(100),
+#   composer varchar(50),
+#   url varchar(200),
+#   ragam varchar(100),
+#   ragam_id bigint references ragams(id)
+#   );
+
+# populate db
+#-----------------------
+# (ragams->csv)
+# \copy ragams (name, mela_num, arohanam, avarohanam, parent_mela_num) from ragams.psv csv delimiter '|';
+# \copy kritis (ragam, name,composer,url) from kritis.psv csv delimiter '|';
+# update kritis k set ragam_id = r.id from ragams r where k.ragam = r.name;
+
+# prepare search
+#-----------------------
+ # http://bartlettpublishing.com/site/bartpub/blog/3/entry/350
+ # CREATE EXTENSION pg_trgm;
+ # create extension fuzzystrmatch;
+ # CREATE INDEX ragas_name_trigram_idx ON ragams USING gist(name gist_trgm_ops);
+ # CREATE INDEX kritis_name_trigram_idx ON kritis USING gist(name gist_trgm_ops);
+
+# prepare query
+#-----------------------
+# prepare search (varchar, float) AS select * from ragas where name % $1 and similarity (name, $1) > $2;
+
+# usage
+#-----------------------
+# execute search('abhogi', 0.4);
