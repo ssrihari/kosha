@@ -16,7 +16,7 @@
 
 (defn remove-prop-names [prop-value]
   (when prop-value
-    (u/replace-str #"(?i)language|composer|click to view in| (- click to listen).*|pallavi"
+    (u/replace-str #"(?i)language|composer|click to view in|(- click to listen).*|pallavi"
                    ""
                    prop-value)))
 

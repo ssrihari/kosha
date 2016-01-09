@@ -3,6 +3,7 @@
             [clojure.edn :as edn]
             [kosha.scrapers.karnatik.kriti-list :as kl]
             [kosha.scrapers.karnatik.kriti :as kk]
+            [kosha.scrapers.karnatik.db :as kdb]
             [kosha.scrapers.util :as u]))
 
 (def output-filename "output/karnatik.edn")
@@ -27,11 +28,18 @@
        slurp
        edn/read-string))
 
+(defn write-to-db []
+  (for [k (remove nil? (read-output))]
+    (kdb/insert-row k)))
+
 (comment
 
   ;; To run this:
   (time (scrape-and-save-all-kritis))
+  ;; Watch progress using:
+  ;; watch -n 1 -d bin/karnatik-stats
 
+  (def karnatik-data (remove nil? (read-output)))
   ;; TODO: convert these to tests
   ;; cases covered in lyrics and meaning
   (get-kriti-details "http://www.karnatik.com/c1373.shtml") ;; p+a+c with meanings

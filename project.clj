@@ -8,6 +8,7 @@
                  [clj-http "2.0.0"]
                  [hiccup "1.0.5"]
                  [medley "0.7.0"]
+                 [pg-hstore "3.0.3"]
                  [org.clojure/clojure "1.7.0"]
                  [org.clojure/java.jdbc "0.4.2"]
                  [org.clojure/tools.cli "0.3.3"]
