@@ -36,6 +36,9 @@
     nil
     input-str))
 
+(defn split-str [re s]
+  (s/split s re))
+
 (defn replace-str
   "Version of string/replace where s is the last argument.
   Used when threading last."
@@ -56,7 +59,16 @@
       :body
       Jsoup/parse))
 
-(defn url->jsoup [url]
+(defn url->jsoup [url & [options]]
   (-> url
-      client/get
+      (client/get options)
       response->jsoup))
+
+(defn my-pmap [f coll n]
+  (let [rets (map #(future (f %)) coll)
+        step (fn step [[x & xs :as vs] fs]
+               (lazy-seq
+                (if-let [s (seq fs)]
+                  (cons (deref x) (step xs (rest s)))
+                  (map deref vs))))]
+    (step rets (drop n rets))))

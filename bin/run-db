@@ -67,6 +67,31 @@ CREATE TABLE IF NOT EXISTS karnatik_data (
 )
 "
 
+run_psql "
+CREATE TABLE IF NOT EXISTS sangeethapriya_tracks (
+  id           BIGSERIAL PRIMARY KEY,
+  concert_id   TEXT,
+  concert_url  TEXT,
+  track_number INTEGER,
+  track_url    TEXT
+);
+"
+
+run_psql "
+CREATE TABLE IF NOT EXISTS sangeethapriya_renditions (
+  id          BIGSERIAL PRIMARY KEY,
+  concert_id  TEXT,
+  concert_url TEXT,
+  track       TEXT,
+  kriti       TEXT,
+  ragam       TEXT,
+  composer    TEXT,
+  main_artist TEXT
+);
+"
+
+
+
 # create table kritis (
 #   id bigserial primary key,
 #   name varchar(100),
