@@ -87,8 +87,8 @@ CREATE TABLE IF NOT EXISTS kritis (
   karnatik_id       BIGINT,
   sangeethapriya_id BIGINT);
 
-CREATE VIEW IF NOT EXISTS std_ragams AS
-SELECT r.ragam AS ragam_name, ws.arohanam, ws.avarohanam
+CREATE OR REPLACE VIEW std_ragams AS
+SELECT r.ragam AS ragam_name, r.s_ragams, r.k_ragams, ws.arohanam, ws.avarohanam
 FROM ragams r
 INNER JOIN wikipedia_scales ws ON r.ragam = ws.raga_name;
 
@@ -106,3 +106,24 @@ $$ LANGUAGE plpgsql;
 
 -- PREPARE rsearch (varchar) AS SELECT *, similarity_score(ragam_name, $1) score FROM std_ragams ORDER BY score DESC LIMIT 10;
 -- EXECUTE rsearch ('punnagavarali');
+
+
+CREATE OR REPLACE FUNCTION str_compare(a VARCHAR, b VARCHAR)
+RETURNS BOOLEAN AS $$
+DECLARE result BOOLEAN;
+BEGIN
+        SELECT unaccent(lower(a)) ~* unaccent(lower(b)) INTO result;
+        RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION str_compare_ar(a VARCHAR, b VARCHAR[])
+RETURNS BOOLEAN AS $$
+DECLARE result BOOLEAN;
+BEGIN
+     SELECT bool_or(r) INTO result FROM
+       (SELECT str_compare (a,c) AS r
+        FROM (SELECT UNNEST(b) AS c) s1) s2;
+     RETURN result;
+END;
+$$ LANGUAGE plpgsql;

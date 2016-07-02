@@ -1,10 +1,18 @@
 (ns kosha.db.search
-  (:require [kosha.db.pool :as db-pool]
-            [clojure.java.jdbc :as j]
-            [pg-hstore.core :as hs]))
+  (:require [clojure.java.jdbc :as j]
+            [clojure.set :as set]
+            [kosha.db.pool :as db-pool]
+            [kosha.db :as db]
+            [pg-hstore.core :as hs]
+            [medley.core :as m]))
 
 (defn ->hyphens [^String x]
   (keyword (.replace x \_ \-)))
+
+(defn read-ragam [ragam]
+  (-> ragam
+      (update :s-ragams db/read-array)
+      (update :k-ragams db/read-array)))
 
 (defn read-kriti [kriti]
   (-> kriti
@@ -49,10 +57,29 @@
            kriti kriti kriti]]
     (j/query db-pool/conn q :identifiers ->hyphens)))
 
+(defn scales [rows]
+  (->> rows
+       (group-by :ragam-name)
+       (m/map-vals (fn [rs] (map #(select-keys % [:arohanam :avarohanam]) rs)))))
+
 (defn ragams [ragam n]
-  (let [q ["SELECT *, similarity_score(ragam_name, ?) score
-            FROM std_ragams
-            ORDER BY score
-            DESC LIMIT ?; "
-           ragam n]]
-    (j/query db-pool/conn q :identifiers ->hyphens)))
+  (let [q1 ["SELECT * FROM std_ragams
+             WHERE str_compare(?, ragam_name)
+             OR str_compare_ar(?, s_ragams::varchar[])
+             OR str_compare_ar(?, k_ragams::varchar[]);"
+            ragam ragam, ragam]
+        q2 ["SELECT *, similarity_score(ragam_name, ?) AS score
+             FROM std_ragams
+             ORDER BY score
+             DESC LIMIT ?; "
+            ragam n]]
+    (->> (j/query db-pool/conn q1 :identifiers ->hyphens)
+         (concat (j/query db-pool/conn q2 :identifiers ->hyphens))
+         (map read-ragam)
+         (m/distinct-by (juxt :ragam-name :arohanam :avarohanam)))))
+
+(defn ragams-with-scales [ragam n]
+  (let [result-ragams (ragams ragam n)
+        ragam-scales (scales result-ragams)]
+    (for [r (m/distinct-by :ragam-name result-ragams)]
+      (assoc r :scales (get ragam-scales (:ragam-name r))))))
