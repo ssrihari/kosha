@@ -48,3 +48,11 @@
             LIMIT 50;"
            kriti kriti kriti]]
     (j/query db-pool/conn q :identifiers ->hyphens)))
+
+(defn ragams [ragam n]
+  (let [q ["SELECT *, similarity_score(ragam_name, ?) score
+            FROM std_ragams
+            ORDER BY score
+            DESC LIMIT ?; "
+           ragam n]]
+    (j/query db-pool/conn q :identifiers ->hyphens)))

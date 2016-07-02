@@ -16,41 +16,41 @@
     [:input.submit-button {:name "t" :type "submit" :value "kriti"}]]
    body))
 
-(defn show-kriti [{:keys [kriti kriti-details renditions]}]
-  (html-skeleton
-   [:body
-    [:h2 "Renditions!"]
-    [:section.pane
-     [:table
-      (for [rendition (take 2 renditions)]
-        (let [track-url (:track-url rendition)#_(s/replace (:track-url rendition)
-                                   #"http://sangeethapriya.ravisnet.com:8080/"
-                                   "http://d3do6lq424xw6i.cloudfront.net/")]
-          [:tr
-           [:td (:kriti rendition)]
-           [:td (:main-artist rendition)]
-           [:td [:audio {:controls ""}
-                 [:source {:src track-url :type "audio/mpeg"}]]]]))]]
-    [:section.pane
-     [:article (for [[detail-name detail-value] (dissoc kriti-details :lyrics)]
-                 [:p
-                  [:b detail-name] " " [:span detail-value]])]
-     (for [[detail-name detail-value] (:content (:lyrics kriti-details))]
-       [:article
-        [:b detail-name]
-        [:p detail-value]])]]))
+;; (defn show-kriti [{:keys [kriti kriti-details renditions]}]
+;;   (html-skeleton
+;;    [:body
+;;     [:h2 "Renditions!"]
+;;     [:section.pane
+;;      [:table
+;;       (for [rendition (take 2 renditions)]
+;;         (let [track-url (:track-url rendition)#_(s/replace (:track-url rendition)
+;;                                    #"http://sangeethapriya.ravisnet.com:8080/"
+;;                                    "http://d3do6lq424xw6i.cloudfront.net/")]
+;;           [:tr
+;;            [:td (:kriti rendition)]
+;;            [:td (:main-artist rendition)]
+;;            [:td [:audio {:controls ""}
+;;                  [:source {:src track-url :type "audio/mpeg"}]]]]))]]
+;;     [:section.pane
+;;      [:article (for [[detail-name detail-value] (dissoc kriti-details :lyrics)]
+;;                  [:p
+;;                   [:b detail-name] " " [:span detail-value]])]
+;;      (for [[detail-name detail-value] (:content (:lyrics kriti-details))]
+;;        [:article
+;;         [:b detail-name]
+;;         [:p detail-value]])]]))
 
-(defn search-kriti-result [kritis]
-  (html-skeleton
-   [:body
-    [:h2 "Kriti search result"]
-    [:table
-     [:thead
-      [:th "Kriti"] [:th "Ragam"]]
-     (for [kriti (take 10 kritis)]
-       [:tr
-        [:td [:a {:href (str "/kriti/" (s/replace (:sang-kriti kriti) #" " ""))} (:sang-kriti kriti)]]
-        [:td (:sragam kriti)]])]]))
+;; (defn search-kriti-result [kritis]
+;;   (html-skeleton
+;;    [:body
+;;     [:h2 "Kriti search result"]
+;;     [:table
+;;      [:thead
+;;       [:th "Kriti"] [:th "Ragam"]]
+;;      (for [kriti (take 10 kritis)]
+;;        [:tr
+;;         [:td [:a {:href (str "/kriti/" (s/replace (:sang-kriti kriti) #" " ""))} (:sang-kriti kriti)]]
+;;         [:td (:sragam kriti)]])]]))
 
 ;; (defn ->printable [swarams & {:keys [bold?]}]
 ;;   (s/join ", " (map (comp s/capitalize name) swarams)))

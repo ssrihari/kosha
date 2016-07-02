@@ -86,3 +86,23 @@ CREATE TABLE IF NOT EXISTS kritis (
   name              VARCHAR(100),
   karnatik_id       BIGINT,
   sangeethapriya_id BIGINT);
+
+CREATE VIEW IF NOT EXISTS std_ragams AS
+SELECT r.ragam AS ragam_name, ws.arohanam, ws.avarohanam
+FROM ragams r
+INNER JOIN wikipedia_scales ws ON r.ragam = ws.raga_name;
+
+CREATE OR REPLACE FUNCTION similarity_score(a VARCHAR, b VARCHAR)
+RETURNS FLOAT AS $$
+DECLARE score FLOAT;
+BEGIN
+        SELECT (10 * similarity (a, b)) +
+        (1.3 * (10 - levenshtein (a, b))) +
+               (10 * (difference (a, b) /4 ))
+	INTO score;
+        RETURN score/3.3;
+END;
+$$ LANGUAGE plpgsql;
+
+-- PREPARE rsearch (varchar) AS SELECT *, similarity_score(ragam_name, $1) score FROM std_ragams ORDER BY score DESC LIMIT 10;
+-- EXECUTE rsearch ('punnagavarali');

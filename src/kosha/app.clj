@@ -1,12 +1,14 @@
 (ns kosha.app
   (:require [ring.adapter.jetty :as jetty]
             [ring.middleware.params :as params]
+            [ring.middleware.keyword-params :as kw-params]
             [cider.nrepl :as cider]
             [clojure.tools.nrepl.server :as nrepl]
             [cheshire.core :as json]
             [bidi.ring :as br]
-            [kosha.app.view :as view]
-            [kosha.db.search :as search]))
+            [kosha.app.search :as search]
+            [kosha.app.ragam :as ragam]
+            [kosha.app.view :as view]))
 
 (defn html-response [html]
   {:status 200
@@ -26,38 +28,22 @@
   {:status 200
    :body (view/html-skeleton nil)})
 
-(defn search-kriti [{:keys [params] :as request}]
-  (let [query (or (get (:params (params/params-request request)) "q")
-                  (:query params))]
-    (if-let [search-result (search/kritis query)]
-      (if (accepts-json? request)
-        (json-response search-result)
-        (html-response (view/search-kriti-result search-result)))
-      (if (accepts-json? request)
-        (json-response "Sorry, no such kriti.")
-        (html-response (view/html-skeleton "Sorry, no such kriti."))))))
-
 (defn search [{:keys [params] :as request}]
-  (let [type (or (get (:params (params/params-request request)) "t")
-                 (:type params))]
+  (def *r request)
+  (let [type (get-in request [:params :t])]
     (case type
-      "kriti" (search-kriti request))))
-
-(defn show-kriti [{:keys [params] :as request}]
-  (let [kriti (first (search/kritis (:name params)))]
-    (html-response (view/show-kriti
-                    {:kriti kriti
-                     :kriti-details (first (search/kriti-details (:name params)))
-                     :renditions (search/renditions (:sang-kriti kriti))}))))
+      "ragam" (search/ragam request))))
 
 (def routes ["/" [["" index]
                   ["" (br/->ResourcesMaybe {:prefix "public/"})]
                   ["search" search]
                   ["search/" {[:type "/"] {[:query] search}}]
-                  ["kriti/" {[:name] show-kriti}]]])
+                  ["ragam/" {[:name] ragam/show}]]])
 
 (def handler
-  (br/make-handler routes))
+  (-> (br/make-handler routes)
+      kw-params/wrap-keyword-params
+      params/wrap-params))
 
 (defn start! [port nrepl-port]
   (nrepl/start-server :port nrepl-port :handler cider/cider-nrepl-handler)
