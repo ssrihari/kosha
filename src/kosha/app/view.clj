@@ -9,6 +9,7 @@
    (include-css "/style.css")
    (include-css "http://fonts.googleapis.com/css?family=PT+Serif")
    (include-css "http://fonts.googleapis.com/css?family=PT+Sans")
+   [:meta {:http-equiv "Content-Type" :content "text/html; charset=UTF-8"}]
    [:meta {:name "viewport" :content "width=device-width"}]
    [:form.search-form {:action "/search"}
     [:input.search-box {:type "text" :name "q" :placeholder "search..."}]
@@ -51,12 +52,6 @@
 ;;        [:tr
 ;;         [:td [:a {:href (str "/kriti/" (s/replace (:sang-kriti kriti) #" " ""))} (:sang-kriti kriti)]]
 ;;         [:td (:sragam kriti)]])]]))
-
-;; (defn ->printable [swarams & {:keys [bold?]}]
-;;   (s/join ", " (map (comp s/capitalize name) swarams)))
-
-;; (defn display-ragam-name [ragam-name]
-;;   (s/capitalize (name ragam-name)))
 
 ;; (defn ragam-url [ragam]
 ;;   (str "/search/ragam/" (name (:name ragam))))

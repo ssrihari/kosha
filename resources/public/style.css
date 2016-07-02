@@ -1,5 +1,6 @@
 body{
     margin: 0;
+    font-family: "PT Sans";
 }
 
 .pane {
@@ -8,4 +9,8 @@ body{
     min-width: 300px;
     max-width: 600px;
     margin-right: 20px;
+}
+
+.inline {
+    display:inline-block;
 }

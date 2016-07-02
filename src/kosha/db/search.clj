@@ -57,6 +57,12 @@
            kriti kriti kriti]]
     (j/query db-pool/conn q :identifiers ->hyphens)))
 
+(defn ragam-metadata [ragam-name]
+  (let [q ["SELECT * FROM wikipedia_ragas WHERE raga_name = ?"
+           ragam-name]]
+    (->> (j/query db-pool/conn q :identifiers ->hyphens)
+         first)))
+
 (defn scales [rows]
   (->> rows
        (group-by :ragam-name)
@@ -82,4 +88,6 @@
   (let [result-ragams (ragams ragam n)
         ragam-scales (scales result-ragams)]
     (for [r (m/distinct-by :ragam-name result-ragams)]
-      (assoc r :scales (get ragam-scales (:ragam-name r))))))
+      (assoc r
+        :scales (get ragam-scales (:ragam-name r))
+        :metadata (ragam-metadata (:ragam-name r))))))
