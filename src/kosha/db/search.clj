@@ -19,6 +19,16 @@
       (update :lyrics hs/from-hstore)
       (update-in [:lyrics :content] hs/from-hstore)))
 
+(defn renditions-in-ragam [ragam]
+  (let [q ["SELECT * FROM sangeethapriya_renditions sr
+            INNER JOIN sangeethapriya_tracks st
+            ON sr.concert_id = st.concert_id
+            AND sr.track = st.track_number
+            WHERE ragam = ?;"
+           ragam]]
+    (j/query db-pool/conn q
+             :identifiers ->hyphens)))
+
 (defn renditions [kriti]
   (let [q ["SELECT * FROM (
               SELECT *,
@@ -89,5 +99,5 @@
         ragam-scales (scales result-ragams)]
     (for [r (m/distinct-by :ragam-name result-ragams)]
       (assoc r
-        :scales (get ragam-scales (:ragam-name r))
-        :metadata (ragam-metadata (:ragam-name r))))))
+             :scales (get ragam-scales (:ragam-name r))
+             :metadata (ragam-metadata (:ragam-name r))))))
